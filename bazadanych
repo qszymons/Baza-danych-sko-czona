@@ -1,162 +1,178 @@
 #lab 4
-create table postac( id_postaci int auto_increment primary key, nazwa varchar(40), rodzaj enum('wiking', 'ptak', 'kobieta'), data_ur date, wiek int unsigned);
+CREATE TABLE postac (
+    id_postaci SERIAL PRIMARY KEY,
+    nazwa VARCHAR(40),
+    rodzaj ENUM ('wiking', 'ptak', 'kobieta'),
+    data_ur DATE,
+    wiek INT UNSIGNED
+);
+INSERT INTO postac (nazwa, rodzaj, data_ur, wiek) VALUES 
+('Bjorn', 'wiking', '2000-01-01', 25),
+('Drozd', 'ptak', '2010-05-15', 12),
+('Tesciowa', 'kobieta', '1936-08-22', 70);
+INSERT INTO postac (nazwa, rodzaj, data_ur, wiek) VALUES 
+('Bjorn', 'wiking', '2000-01-01', 25),
+('Drozd', 'ptak', '2010-05-15', 12),
+('Tesciowa', 'kobieta', '1936-08-22', 70);
+
+CREATE TABLE walizka (
+    id_walizki SERIAL PRIMARY KEY,
+    pojemnosc INT UNSIGNED,
+    kolor ENUM ('różowy', 'czerwony', 'tęczowy', 'żółty') DEFAULT 'różowy',
+    id_wlasciciela INT,
+    FOREIGN KEY (id_wlasciciela) REFERENCES postac (id_postaci) ON DELETE CASCADE
+);
+ALTER TABLE walizka ALTER COLUMN kolor SET DEFAULT 'różowy';
+
+INSERT INTO walizka (pojemnosc, id_wlasciciela) VALUES (30, (SELECT id_postaci FROM postac WHERE nazwa = 'Bjorn'));
 
 
-mysql> insert into postac values(default,'Tesciowa','kobieta','1970-05-03',53);
-create table walizka( id_walizki int primary key auto_increment, pojemnosc int unsigned, kolor enum('rozowy', 'czerwony', 'teczowy', 'zolty'), id_wlasciciela int, foreign key(id_wlasciciela) references postac(id_postaci) on delete cascade);
-
-alter table walizka alter kolor set default 'rozowy';
-
-mysql> describe walizka;
-
-insert into walizka values(default,50,default,1);
-
-insert into walizka values(default,50,default,3);
-
-select * from walizka;
+INSERT INTO walizka (pojemnosc, id_wlasciciela) VALUES (25, (SELECT id_postaci FROM postac WHERE nazwa = 'Tesciowa'));
 
 
-create table izba (
-adres_budynku varchar(50) not null,
-adres_izby varchar(50) not null,
-metraz mediumint unsigned,
-wlasciciel int,
-foreign key (wlasciciel)
-references postac(id_postaci) on delete set null
+CREATE TABLE izba (
+    adres_budynku VARCHAR(255),
+    nazwa_izby VARCHAR(255),
+    metraz INT UNSIGNED,
+    wlasciciel INT,
+    PRIMARY KEY (adres_budynku, nazwa_izby),
+    FOREIGN KEY (wlasciciel) REFERENCES postac (id_postaci) ON DELETE SET NULL
+);
+ALTER TABLE izba ADD COLUMN kolor VARCHAR(20) DEFAULT 'czarny' AFTER metraz;
+
+
+INSERT INTO izba (adres_budynku, nazwa_izby, metraz, wlasciciel, kolor) 
+VALUES ('ul. Przykładowa 123', 'spiżarnia', 10, NULL, 'biały');
+
+CREATE TABLE przetwory (
+    id_przetworu SERIAL PRIMARY KEY,
+    rok_produkcji YEAR DEFAULT 1654,
+    id_wykonawcy INT,
+    zawartosc VARCHAR(255),
+    dodatek VARCHAR(255) DEFAULT 'papryczka chilli',
+    id_konsumenta INT,
+    FOREIGN KEY (id_wykonawcy) REFERENCES postac (id_postaci),
+    FOREIGN KEY (id_konsumenta) REFERENCES postac (id_postaci)
+);
+INSERT INTO przetwory (rok_produkcji, id_wykonawcy, zawartosc, dodatek, id_konsumenta) 
+VALUES (2023, (SELECT id_postaci FROM postac WHERE nazwa = 'Wykonawca'), 'bigos', 'papryczka chilli', (SELECT id_postaci FROM postac WHERE nazwa = 'Konsument'));
+
+INSERT INTO postac (nazwa, rodzaj, data_ur, wiek) VALUES 
+('Wiking1', 'wiking', '1980-01-01', 40),
+('Wiking2', 'wiking', '1985-05-15', 35),
+('Wiking3', 'wiking', '1990-07-20', 30),
+('Wiking4', 'wiking', '1995-10-10', 25),
+('Wiking5', 'wiking', '2000-12-25', 20);
+
+CREATE TABLE statek (
+    nazwa_statku VARCHAR(255) PRIMARY KEY,
+    rodzaj_statku ENUM ('żaglowiec', 'łódź podwodna', 'statek wojenny', 'inne'),
+    data_wodowania DATE,
+    max_ladownosc INT UNSIGNED
 );
 
-alter table izba add column
-kolor varchar(30) default 'czarny'
-after metraz;
+INSERT INTO statek (nazwa_statku, rodzaj_statku, data_wodowania, max_ladownosc) VALUES
+('Statek1', 'żaglowiec', '2010-05-01', 100),
+('Statek2', 'łódź podwodna', '2015-08-10', 50);
 
-insert into izba values
-('kolejowa 23','spiżarnia',10,default,1);
+ALTER TABLE postac ADD COLUMN funkcja VARCHAR(255);
+UPDATE postac SET funkcja = 'kapitan' WHERE nazwa = 'Bjorn';
+ALTER TABLE postac ADD COLUMN id_statku VARCHAR(255), ADD FOREIGN KEY (id_statku) REFERENCES statek (nazwa_statku) ON DELETE SET NULL;
 
-alter table izba add primary key(adres_budynku, nazwa_izby);
+UPDATE postac SET id_statku = 'Statek1' WHERE nazwa IN ('Wiking1', 'Wiking2', 'Wiking3');
+UPDATE postac SET id_statku = 'Statek2' WHERE nazwa IN ('Wiking4', 'Wiking5', 'Drozd');
 
-
-create table przetwory (
-id_przetworu int auto_increment primary key, 
-rok_produkcji smallint default 1654, 
-id_wykonawcy int, foreign key (id_wykonawcy) references postac(id_postaci),
-zawartosc varchar(100),
-dodatek varchar(50) default 'papryczka chilli',
-id_konsumenta int, foreign key (id_konsumenta) references postac(id_postaci)
-);
-
-insert into przetwory values (default,default,1,'bigos',default,3);
-insert into postac values(default,'Gilli','wiking','1691-08-08',332); #to razy 5
-
-create table statek(
-nazwa_statku varchar(100) primary key not null,
-rodzaj_statku enum('slup','brygantyna','galeon'),
-data_wodowania date,
-max_ladownosc int unsigned);
-select * from postac;
-insert into statek values('tytanik','galeon','2020-11-12','83');
-insert into statek values('caleuche','slup','2018-10-11','20');
+DELETE FROM izba WHERE nazwa_izby = 'spiżarnia';
+DROP TABLE izba;
 
 
 
-
-update postac set funkcja='kapitan' where id_postaci=1;
-alter table postac add jaki_Statek varchar(100);
-alter table postac add foreign key (jaki_statek) references statek(nazwa_Statku);
-update postac set jaki_statek='caleuche' where id_postaci=7;
-
-
-delete from izba;
-drop table izba;
 
 
 #lab 5
 
+DELETE FROM postac WHERE rodzaj = 'wiking' ORDER BY wiek DESC LIMIT 2;
 
-delete from postac where wiek=332;
+ALTER TABLE postac DROP CONSTRAINT postac_pkey;
 
-alter table przetwory
-drop foreign key przetwory_ibfk_2;
+ALTER TABLE postac DROP COLUMN id_postaci;
 
-alter table postac change
-id_postaci id_postaci int;
+ALTER TABLE postac ADD COLUMN pesel VARCHAR(11) PRIMARY KEY;
 
-alter table postac drop primary key;
+ALTER TABLE postac ALTER COLUMN rodzaj TYPE ENUM ('wiking', 'ptak', 'kobieta', 'syrena') USING rodzaj::text::ENUM ('wiking', 'ptak', 'kobieta', 'syrena');
 
-alter table postac add column pesel char(11) first;
-update postac set pesel='53817293811' + id_postaci;
-alter table postac add primary key(pesel);
+INSERT INTO postac (nazwa, rodzaj, data_ur, wiek) VALUES ('Gertruda Nieszczera', 'syrena', '1990-01-01', 32);
 
-alter table postac modify rodzaj enum('wiking','ptak','kobieta','syrena');
+UPDATE postac SET id_statku = (SELECT id_statku FROM postac WHERE nazwa = 'Bjorn') WHERE nazwa LIKE '%a%';
 
-insert into postac values(53817293819,8,'Gertruda nieszczera','syrena','1691-08-08',332,default,default);
-update postac set jaki_statek='tytanik' where nazwa like '%a%';
+UPDATE statek SET max_ladownosc = max_ladownosc * 0.7 WHERE EXTRACT(YEAR FROM data_wodowania) BETWEEN 1900 AND 1999;
 
-insert into statek values('santa maria','brygantyna','1950-10-11','60');
-update statek set max_ladownosc=max_ladownosc*0.3 where data_wodowania >='1901-01-01' and data_wodowania <= '2000-12-31';
+SELECT * FROM postac WHERE wiek <= 1000;
 
-alter table postac add check(wiek<1000);
-alter table postac modify rodzaj enum('wiking','ptak','kobieta','syrena','waz');
-insert into postac values(53817293820,9,'waz loko','waz','1993-08-08',30,null,null);
+INSERT INTO postac (nazwa, rodzaj, data_ur, wiek) VALUES ('Loko', 'wąż', '1980-01-01', 200);
 
-create table marynarz like postac;
-insert into marynarz select * from postac where jaki_statek is not null;
+CREATE TABLE marynarz AS SELECT * FROM postac WHERE id_statku IS NOT NULL;
 
-alter table marynarz add foreign key(jaki_statek) references statek(nazwa_statku);
-update postac set jaki_statek=null;
+UPDATE postac SET id_statku = NULL;
 
-delete from postac where id_postaci=4;
+DELETE FROM postac WHERE rodzaj = 'wiking' LIMIT 1;
 
-alter table marynarz drop foreign key marynarz_ibfk_1;
-delete from statek;
+DELETE FROM statek;
 
-alter table postac drop foreign key postac_ibfk_1;
-drop table statek;
+DROP TABLE statek;
 
-create table zwierz(id_zwierzaka int primary key auto_increment, nazwa varchar(80), wiek smallint);
+CREATE TABLE zwierz (
+    id SERIAL PRIMARY KEY,
+    nazwa VARCHAR(255),
+    wiek INT
+);
+INSERT INTO zwierz (nazwa, wiek) SELECT nazwa, wiek FROM postac WHERE rodzaj != 'wiking' AND rodzaj != 'ptak';
 
-insert into zwierz values(default, 'drozd', 3);
-insert into zwierz values(default, 'waz loko', 30);
 
 
 #lab 6
+CREATE TABLE twoja_baza.kreatura AS SELECT * FROM wikingowie.kreatura;
+CREATE TABLE twoja_baza.zasob AS SELECT * FROM wikingowie.zasob;
+CREATE TABLE twoja_baza.ekwipunek AS SELECT * FROM wikingowie.ekwipunek;
+
+SELECT * FROM twoja_baza.zasob;
+
+SELECT * FROM twoja_baza.zasob WHERE typ = 'jedzenie';
+
+SELECT idZasobu, ilosc FROM twoja_baza.ekwipunek WHERE idKreatury IN (1, 3, 5);
+
+SELECT * FROM twoja_baza.kreatura WHERE typ != 'wiedźma' AND nośność >= 50;
+
+SELECT * FROM twoja_baza.zasob WHERE waga BETWEEN 2 AND 5;
+
+SELECT * FROM twoja_baza.kreatura WHERE nazwa LIKE '%or%' AND nośność BETWEEN 30 AND 70;
+
+SELECT * FROM twoja_baza.zasob WHERE EXTRACT(MONTH FROM data_pozyskania) IN (7, 8);
+
+SELECT * FROM twoja_baza.zasob ORDER BY rodzaj ASC;
+
+SELECT * FROM twoja_baza.kreatura ORDER BY data_urodzenia ASC LIMIT 5;
+
+SELECT DISTINCT rodzaj FROM twoja_baza.zasob;
+
+SELECT CONCAT(nazwa, ' ', rodzaj) AS nazwa_i_rodzaj FROM twoja_baza.kreatura WHERE rodzaj LIKE 'wi%';
+
+SELECT idZasobu, ilosc, waga, ilosc * waga AS całkowita_waga FROM twoja_baza.ekwipunek
+JOIN twoja_baza.zasob USING (idZasobu)
+WHERE EXTRACT(YEAR FROM data_pozyskania) BETWEEN 2000 AND 2007;
+
+SELECT nazwa, waga * 0.7 AS masa_właściwego_jedzenia, waga * 0.3 AS masa_odpadków FROM twoja_baza.zasob WHERE typ = 'jedzenie';
+
+SELECT * FROM twoja_baza.zasob WHERE rodzaj IS NULL;
+
+SELECT DISTINCT rodzaj FROM twoja_baza.zasob WHERE nazwa LIKE 'Ba%' OR nazwa LIKE '%os%' ORDER BY rodzaj ASC;
 
 
-create table kreatura as select * from
-wikingowie.kreatura;
 
 
 
-create table zasob as select * from
-wikingowie.zasob;
 
 
-create table ekwipunek as select * from
-wikingowie.ekwipunek;
-
-
-select * from zasob where rodzaj='jedzenie';
-select idZasobu, ilosc from zasob where idZasobu in (1,3,5);
-select * from kreatura;
-select * from kreatura where rodzaj <> 'wiedzma' and  udzwig>50 or udzwig=50;
-select * from zasob where waga between 2 and 5;
-select * from kreatura where nazwa='%or%' and udzwig between 30 and 70;
-select * from zasob;
-select * from zasob where month(datapozyskania) =7 or month(datapozyskania)=8;
-select * from zasob where rodzaj is not null order by waga asc;
-select * from kreatura where dataur is not null order by dataur asc limit 5
-select distinct(rodzaj) from kreatura;
-select distinct rodzaj from zasob;
-select * from zasob where rodzaj is null;
-select concat(nazwa, ' - ', rodzaj) from kreatura where rodzaj like 'wi%';
-select concat('Ala', 'ma', 'kota') as zdanie;
-select concat(nazwa, 'to id=', idkreatury) from kreatura;
-select concat(nazwa, ' - ', rodzaj) from kreatura where rodzaj like 'wi%';
-select * from zasob;
-select concat(nazwa ,ilosc*waga) from zasob where year(datapozyskania) between 2000 and 2007;
-select * from zasob where rodzaj='jedzenie';
-select concat(nazwa, ' netto = ', waga*0.7, ', waga odpadow = ', waga*0.3) from zasob where rodzaj='jedzenie';
-select * from zasob where rodzaj is null;
-select distinct nazwa,rodzaj from zasob where nazwa like 'Ba%' or nazwa like '%os'order by nazwa;
 
 
 
@@ -164,39 +180,76 @@ select distinct nazwa,rodzaj from zasob where nazwa like 'Ba%' or nazwa like '%o
 
 #lab 7
 
+SELECT AVG(waga) FROM kreatura WHERE rodzaj = 'wiking';
+
+SELECT rodzaj, AVG(waga) AS srednia_waga, COUNT(*) AS liczba_kreatur
+FROM kreatura
+GROUP BY rodzaj;
+
+SELECT rodzaj, AVG(EXTRACT(YEAR FROM AGE(data_urodzenia))) AS sredni_wiek
+FROM kreatura
+GROUP BY rodzaj;
+
+SELECT rodzaj, AVG(EXTRACT(YEAR FROM AGE(data_urodzenia))) AS sredni_wiek
+FROM kreatura
+GROUP BY rodzaj;
+
+SELECT rodzaj, SUM(waga) AS suma_wag
+FROM zasob
+GROUP BY rodzaj;
+
+SELECT nazwa, AVG(waga) AS srednia_waga
+FROM zasob
+GROUP BY nazwa
+HAVING COUNT(*) >= 4 AND SUM(waga) > 10;
+
+SELECT rodzaj, COUNT(DISTINCT nazwa) AS liczba_roznych_nazw
+FROM zasob
+GROUP BY rodzaj
+HAVING COUNT(*) > 1;
+
+SELECT k.nazwa, COUNT(e.idZasobu) AS ilosc_zasobow
+FROM kreatura k
+LEFT JOIN ekwipunek e ON k.idKreatury = e.idKreatury
+GROUP BY k.nazwa;
+
+SELECT k.nazwa, z.nazwa AS nazwa_zasobu
+FROM kreatura k
+LEFT JOIN ekwipunek e ON k.idKreatury = e.idKreatury
+LEFT JOIN zasob z ON e.idZasobu = z.idZasobu;
+
+SELECT k.nazwa
+FROM kreatura k
+LEFT JOIN ekwipunek e ON k.idKreatury = e.idKreatury
+WHERE e.idKreatury IS NULL;
+
+SELECT k.nazwa AS nazwa_wikinga, z.nazwa AS nazwa_zasobu
+FROM kreatura k
+NATURAL JOIN ekwipunek e
+JOIN zasob z ON e.idZasobu = z.idZasobu
+WHERE EXTRACT(YEAR FROM k.data_urodzenia) BETWEEN 1670 AND 1679 AND k.rodzaj = 'wiking';
 
 
+SELECT k.nazwa
+FROM kreatura k
+NATURAL JOIN ekwipunek e
+JOIN zasob z ON e.idZasobu = z.idZasobu
+WHERE z.typ = 'jedzenie'
+ORDER BY k.data_urodzenia DESC
+LIMIT 5;
 
-select avg(waga) from kreatura where rodzaj='wiking';
+SELECT k1.nazwa AS nazwa_kreatury_1, k2.nazwa AS nazwa_kreatury_2
+FROM kreatura k1
+JOIN kreatura k2 ON k1.idKreatury = k2.idKreatury - 5;
 
-select rodzaj, avg(waga), count(*) from kreatura group by rodzaj;
+SELECT k.rodzaj, AVG(z.waga) AS srednia_waga_zasobow
+FROM kreatura k
+JOIN ekwipunek e ON k.idKreatury = e.idKreatury
+JOIN zasob z ON e.idZasobu = z.idZasobu
+WHERE k.rodzaj NOT IN ('małpa', 'wąż') AND COUNT(e.idEkwipunku) < 30
+GROUP BY k.
 
-select rodzaj, avg(year(curdate()) - year(dataur)) as 'sredni wiek' from kreatura group by rodzaj;
-select rodzaj, sum(waga) as 'waga calkowita' from zasob group by rodzaj;
 
-select nazwa, avg(waga) from zasob where ilosc >= 4 group by nazwa having sum(waga) > 10 ;
-
-select rodzaj, count(distinct nazwa) as liczba from zasob group by rodzaj having liczba > 1;
-select k.nazwa, e.idzasobu, e.ilosc from kreatura k
-inner join ekwipunek e
-on k.idkreatury=e.idKreatury
-inner join zasob z on z.idZasobu=e.idzasobu;
-
-select * from kreatura k left join ekwipunek e on k.idkreatury=e.idkreatury where e.idKreatury is null;
-
-select idkreatury from kreatura where idkreatury not in (select distinct idkreatury from ekwipunek where idKreatury is not null);
-SELECT kreatura.nazwa, kreatura.dataur, zasob.nazwa FROM ekwipunek natural join zasob, kreatura where kreatura.rodzaj='wiking' and year(dataUr) between 1670 and 1679;
-
-SELECT kreatura.nazwa, kreatura.dataur, zasob.nazwa, zasob.rodzaj FROM ekwipunek natural join zasob, kreatura where zasob.rodzaj='jedzenie' and kreatura.dataur is not null order by kreatura.dataur desc limit 5;
-
-select concat(k1.nazwa, " - ", k2.nazwa) as relacja from kreatura k1 inner join kreatura k2 where k1.idkreatury - k2.idkreatury =5;
-SELECT kreatura.rodzaj, avg(zasob.waga * ekwipunek.ilosc) FROM kreatura inner join ekwipunek on kreatura.idkreatury=ekwipunek.idKreatury inner join zasob on ekwipunek.idzasobu=zasob.idzasobu
-where kreatura.rodzaj not in ('malpa', 'waz') and ekwipunek.ilosc<30 group by kreatura.rodzaj;
-
-select a.nazwa, a.rodzaj, a.dataur from kreatura a,
-(select min(dataur) min, max(dataur) max
-from kreatura group by rodzaj) b
-where b.min = a.dataur or b.max=a.dataur;
 
 
 
@@ -206,109 +259,4 @@ where b.min = a.dataur or b.max=a.dataur;
 
 
 
-select k.idKreatury, k.nazwa, u.id_uczestnika from kreatura k left join uczestnicy u on k.idkreatury=u.id_uczestnika where u.id_uczestnika is null;
 
-select wyprawa.nazwa, sum(kreatura.udzwig) from uczestnicy inner join wyprawa on uczestnicy.id_wyprawy=wyprawa.id_wyprawy inner join kreatura on uczestnicy.id_uczestnika=kreatura.idKreatury group by wyprawa.nazwa;
-select wyprawa.nazwa, count(kreatura.idKreatury) as 'liczba uczestnikow', group_concat(kreatura.nazwa) as 'uczestnicy' from uczestnicy inner join wyprawa on uczestnicy.id_wyprawy=wyprawa.id_wyprawy inner join kreatura on uczestnicy.id_uczestnika=kreatura.idKreatury group by wyprawa.nazwa;
-
-select etapy_wyprawy.idwyprawy, etapy_wyprawy.dziennik, sektor.nazwa as 'nazwa sektora', kreatura.nazwa as 'kierownik' from etapy_wyprawy inner join sektor on etapy_wyprawy.sektor=sektor.id_sektora 
-inner join wyprawa on etapy_wyprawy.idwyprawy=wyprawa.id_wyprawy inner join kreatura on wyprawa.kierownik=kreatura.idKreatury order by wyprawa.data_rozpoczecia asc, etapy_wyprawy.kolejnosc asc;
-select s.nazwa, ifnull(count(ew.sektor),0) as 'ile razy odwiedzone' from sektor s left join etapy_wyprawy ew on s.id_sektora=ew.sektor group by s.nazwa;
-
-select k.nazwa, if (count(u.id_uczestnika)>0, 'brał udział w wyprawie','nie bral udzialu w wyprawie') as 'czy bral udzial w wyprawie' from kreatura k left join uczestnicy u  on u.id_uczestnika=k.idKreatury group by k.nazwa;
-select w.nazwa, sum(length(ew.dziennik)) as 'liczba znakow'from wyprawa w inner join etapy_wyprawy ew on w.id_wyprawy=ew.idWyprawy group by w.nazwa having sum(length(ew.dziennik))<400;
-
-select u.id_wyprawy, w.nazwa, sum(e.ilosc * z.waga) / count(distinct(u.id_uczestnika)) as 'jakas tam srednia' from uczestnicy u inner join ekwipunek e on e.idKreatury=u.id_uczestnika inner join zasob z on z.idZasobu=e.idZasobu 
-inner join wyprawa w on w.id_wyprawy=u.id_wyprawy group by u.id_wyprawy, w.nazwa;
-select w.nazwa, sum(length(ew.dziennik)) as 'liczba znakow'from wyprawa w inner join etapy_wyprawy ew on w.id_wyprawy=ew.idWyprawy group by w.nazwa having sum(length(ew.dziennik))<400;
-
-select u.id_wyprawy, w.nazwa, sum(e.ilosc * z.waga) / count(distinct(u.id_uczestnika)) as 'jakas tam srednia' from uczestnicy u inner join ekwipunek e on e.idKreatury=u.id_uczestnika inner join zasob z on z.idZasobu=e.idZasobu 
-inner join wyprawa w on w.id_wyprawy=u.id_wyprawy group by u.id_wyprawy, w.nazwa;select w.id_wyprawy, s.nazwa, k.nazwa, datediff(w.data_rozpoczecia, k.dataur) as 'data rozpoczecia w dniach' from kreatura k inner join uczestnicy u on u.id_uczestnika=k.idKreatury inner join wyprawa w on w.id_wyprawy=u.id_wyprawy 
-inner join etapy_wyprawy ew on ew.idwyprawy=w.id_wyprawy inner join sektor s on s.id_sektora=ew.sektor where ew.sektor=7;
-
-#lab 9
-
-DELIMITER //
-CREATE TRIGGER kreatura_before_insert
-BEFORE INSERT ON kreatura
-FOR EACH ROW
-BEGIN
-  IF NEW.waga <= 0
-  THEN
-    SET NEW.waga = 0;
-  END IF;
-END
-//
-DELIMITER ;
-create table archiwum_wypraw(id_wyprawy int, nazwa varchar(100), data_rozpoczecia date, data_zakonczenia date, kierownik varchar(100));
-
-insert into wyprawa values(5,'test', '1212-12-12', '1212-12-21', 9);
-
-DELIMITER //
-CREATE TRIGGER wyprawa_before_delete
-BEFORE delete ON wyprawa
-FOR EACH ROW
-BEGIN
-  insert into archiwum_wypraw
-  select w.id_wyprawy, w.nazwa, w.data_rozpoczecia, w.data_zakonczenia, k.nazwa 
-  from wyprawa w inner join kreatura k on w.kierownik=k.idKreatury where id_wyprawy=old.id_wyprawy;
-END
-//
-DELIMITER ;
-
-delete from wyprawa where kierownik=9;
-DELIMITER $$
-CREATE PROCEDURE eliksir_sily(IN id int)
-BEGIN
-update kreatura set udzwig=udzwig*1.2 where idkreatury=id;
-END
-$$
-DELIMITER ;
-
-CALL eliksir_sily(1);
-
-
-create table system_alarmowy(id_alarmu int, wiadomosc varchar(100));
-
-
-DELIMITER $$
-
-CREATE TRIGGER uczestnicy_after_insert
-AFTER INSERT ON uczestnicy
-FOR EACH ROW
-BEGIN
-	DECLARE tesciowa varchar(100);
-	DECLARE sektor_id integer;
-	DECLARE czy_tesciowa bool;
-	DECLARE czy_chata_dziadka bool;
-	SET tesciowa = 'Tesciowa';
-	SET sektor_id = 7;
-	
-
-    
-IF tesciowa in (
-	SELECT nazwa from kreatura WHERE idKreatury in 
-	( SELECT id_uczestnika from uczestnicy where id_wyprawy=NEW.id_wyprawy)) 
-	
-THEN 
-    
-	SET czy_tesciowa = true;
-	END IF;
-    
-IF sektor_id in (
-	SELECT sektor FROM etapy_wyprawy WHERE idWyprawy=NEW.id_wyprawy
-	) 
-THEN 
-	SET czy_chata_dziadka = true;
-END IF;
-    
-IF czy_tesciowa AND czy_chata_dziadka
-    
-THEN  
-	INSERT INTO system_alarmowy VALUES(default,'Tesciowa nadchodzi',default);
-END IF;
-
-END
-$$
-
-DELIMITER ;
