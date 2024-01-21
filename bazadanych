@@ -259,4 +259,157 @@ GROUP BY k.
 
 
 
+CREATE TABLE moja_baza.kreatura AS SELECT * FROM wikingowie.kreatura;
+
+CREATE TABLE moja_baza.uczestnicy AS SELECT * FROM wikingowie.uczestnicy;
+
+CREATE TABLE moja_baza.etapy_wyprawy AS SELECT * FROM wikingowie.etapy_wyprawy;
+
+CREATE TABLE moja_baza.sektor AS SELECT * FROM wikingowie.sektor;
+
+CREATE TABLE moja_baza.wyprawa AS SELECT * FROM wikingowie.wyprawa;
+
+SELECT k.nazwa
+FROM moja_baza.kreatura k
+LEFT JOIN moja_baza.uczestnicy u ON k.idKreatury = u.idKreatury
+WHERE u.idUczestnicy IS NULL;
+
+SELECT w.nazwa AS nazwa_wyprawy, SUM(e.ilosc) AS suma_ekwipunku
+FROM moja_baza.wyprawa w
+JOIN moja_baza.etapy_wyprawy e ON w.idWyprawy = e.idWyprawy
+GROUP BY w.nazwa;
+
+SELECT w.nazwa AS nazwa_wyprawy, COUNT(u.idUczestnicy) AS liczba_uczestnikow, GROUP_CONCAT(k.nazwa) AS nazwy_uczestnikow
+FROM moja_baza.wyprawa w
+JOIN moja_baza.uczestnicy u ON w.idWyprawy = u.idWyprawy
+JOIN moja_baza.kreatura k ON u.idKreatury = k.idKreatury
+GROUP BY w.nazwa;
+
+SELECT w.nazwa AS nazwa_wyprawy, e.nazwa AS nazwa_etapu, s.nazwa AS nazwa_sektora, e.data_poczatku, e.data_konca, k.nazwa AS kierownik
+FROM moja_baza.etapy_wyprawy e
+JOIN moja_baza.wyprawa w ON e.idWyprawy = w.idWyprawy
+JOIN moja_baza.sektor s ON e.idSektora = s.idSektora
+JOIN moja_baza.kreatura k ON e.idKierownika = k.idKreatury
+ORDER BY w.data_rozpoczecia, e.kolejnosc;
+
+SELECT s.nazwa AS nazwa_sektora, COUNT(e.idEtapu) AS ilosc_odwiedzin
+FROM moja_baza.sektor s
+LEFT JOIN moja_baza.etapy_wyprawy e ON s.idSektora = e.idSektora
+GROUP BY s.nazwa;
+
+SELECT k.nazwa AS nazwa_kreatury, 
+       IFNULL(COUNT(u.idWyprawy), 0) AS ilosc_wypraw,
+       IFNULL(IF(COUNT(u.idWyprawy) > 0, 'brał udział w wyprawie', 'nie brał udziału w wyprawie'), 'nie brał udziału w wyprawie') AS status_udzialu
+FROM moja_baza.kreatura k
+LEFT JOIN moja_baza.uczestnicy u ON k.idKreatury = u.idKreatury
+GROUP BY k.nazwa;
+
+SELECT w.nazwa AS nazwa_wyprawy, SUM(LENGTH(e.dziennik)) AS suma_znakow
+FROM moja_baza.wyprawa w
+JOIN moja_baza.etapy_wyprawy e ON w.idWyprawy = e.idWyprawy
+GROUP BY w.nazwa
+HAVING suma_znakow < 400;
+
+SELECT w.nazwa AS nazwa_wyprawy, AVG(u.ilosc * z.waga) AS srednia_waga_zasobow
+FROM moja_baza.wyprawa w
+JOIN moja_baza.uczestnicy u ON w.idWyprawy = u.idWyprawy
+JOIN moja_baza.zasob z ON u.idZasobu = z.idZasobu
+GROUP BY w.nazwa;
+
+
+#lab 9
+
+CREATE TRIGGER sprawdz_wage
+BEFORE INSERT OR UPDATE ON kreatura
+FOR EACH ROW
+BEGIN
+    IF NEW.waga <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'waga nie może być zerowa';
+    END IF;
+END;
+
+
+
+CREATE TABLE archiwum_wypraw (
+    id_wyprawy INT PRIMARY KEY,
+    nazwa VARCHAR(255),
+    data_rozpoczecia DATE,
+    data_zakonczenia DATE,
+    kierownik VARCHAR(255)
+);
+
+CREATE TRIGGER archiwizuj_wyprawe
+AFTER DELETE ON wyprawa
+FOR EACH ROW
+BEGIN
+    INSERT INTO archiwum_wypraw (id_wyprawy, nazwa, data_rozpoczecia, data_zakonczenia, kierownik)
+    VALUES (OLD.idWyprawy, OLD.nazwa, OLD.data_rozpoczecia, OLD.data_zakonczenia,
+            (SELECT nazwa FROM kreatura WHERE idKreatury = OLD.idKierownika));
+END;
+
+
+CREATE PROCEDURE eliksir_sily(IN kreatura_id INT)
+BEGIN
+    UPDATE kreatura
+    SET udzwig = udzwig * 1.20
+    WHERE idKreatury = kreatura_id;
+END;
+
+CREATE FUNCTION wielkie_litery(IN tekst VARCHAR(255))
+RETURNS VARCHAR(255)
+BEGIN
+    RETURN UPPER(tekst);
+END;
+
+CREATE TABLE system_alarmowy (
+    id_alarmu INT PRIMARY KEY AUTO_INCREMENT,
+    wiadomosc TEXT
+);
+
+CREATE TRIGGER alarm_teściowa
+AFTER INSERT ON wyprawa
+FOR EACH ROW
+BEGIN
+    IF (NEW.kierownik = 'teściowa') AND (SELECT COUNT(*) FROM etapy_wyprawy WHERE idWyprawy = NEW.idWyprawy AND idSektora = (SELECT idSektora FROM sektor WHERE nazwa = 'domek dziadka')) > 0 THEN
+        INSERT INTO system_alarmowy (wiadomosc) VALUES ('Teściowa nadchodzi !!!');
+    END IF;
+END;
+
+CREATE PROCEDURE statystyki_udzwigu(OUT srednia_udzwigu FLOAT, OUT suma_udzwigu FLOAT, OUT max_udzwigu FLOAT)
+BEGIN
+    SELECT AVG(udzwig), SUM(udzwig), MAX(udzwig)
+    INTO srednia_udzwigu, suma_udzwigu, max_udzwigu
+    FROM kreatura;
+END;
+
+CREATE PROCEDURE numer_i_nazwa_sektora(IN wyprawa_id INT, OUT numer_sektora VARCHAR(10), OUT nazwy_sektorow TEXT)
+BEGIN
+    DECLARE numer VARCHAR(10);
+    DECLARE nazwy TEXT;
+    
+    SELECT GROUP_CONCAT(CONCAT(numer, ' ', nazwa) ORDER BY kolejnosc) INTO nazwy_sektorow
+    FROM (
+        SELECT DISTINCT s.numer, s.nazwa, e.kolejnosc
+        FROM sektor s
+        JOIN etapy_wyprawy e ON s.idSektora = e.idSektora
+        WHERE e.idWyprawy = wyprawa_id
+    ) AS sektory;
+    
+    SELECT GROUP_CONCAT(numer ORDER BY kolejnosc) INTO numer_sektora
+    FROM (
+        SELECT DISTINCT s.numer, e.kolejnosc
+        FROM sektor s
+        JOIN etapy_wyprawy e ON s.idSektora = e.idSektora
+        WHERE e.idWyprawy = wyprawa_id
+    ) AS numery;
+END;
+
+
+
+
+
+
+
+
 
